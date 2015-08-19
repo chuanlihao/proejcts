@@ -4,31 +4,34 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-class FuncFetcher<I, O> {
-  private Function<I, O> func;
+class Utils {
+  public static <A, B, C> Function<A, C> compose(
+      Function<A, B> firstFunc, Function<B, C> secondFunc) {
+    return input -> {
+      B innerValue = firstFunc.apply(input);
+      return innerValue == null ? null : secondFunc.apply(innerValue);
+    };
+  }
+}
 
-  private FuncFetcher(Function<I, O> func) {
+class ComposableFunc<I, O> implements Function<I, O> {
+  private final Function<I, O> func;
+
+  private ComposableFunc(Function<I, O> func) {
     this.func = func;
   }
 
-  static <I, O> FuncFetcher<I, O> from(Function<I, O> func) {
-    return new FuncFetcher<I, O>(func);
+  public static <I, O> ComposableFunc<I, O> startWith(Function<I, O> func) {
+    return new ComposableFunc<I, O>(func);
   }
 
-  O fetch(I input) {
+  public <R> ComposableFunc<I, R> then(Function<O, R> followingFunc) {
+    return new ComposableFunc<I, R>(Utils.compose(func, followingFunc));
+  }
+
+  @Override
+  public O apply(I input) {
     return func.apply(input);
-  }
-
-  <NO> FuncFetcher<I, NO> then(Function<O, NO> following) {
-    return FuncFetcher.from(compose(func, following));
-  }
-
-  private static <A, B, C> Function<A, C> compose(
-      Function<A, B> firstFunc, Function<B, C> thenFunc) {
-    return input -> {
-      B innerValue = firstFunc.apply(input);
-      return innerValue == null ? null : thenFunc.apply(innerValue);
-    };
   }
 }
 
@@ -39,26 +42,26 @@ public class NewFetchers {
         return length <= 4 ? value : value.substring(length - 4);
     };
 
-    FuncFetcher<Long, User> userFetcher = FuncFetcher
-        .from(Api::getApplication)
+    ComposableFunc<Long, User> userFetcher = ComposableFunc
+        .startWith(Api::getApplication)
         .then(app -> Api.getUser(app.getUserId()));
-    FuncFetcher<Long, String> usernameFetcher = userFetcher
+    Function<Long, String> usernameFetcher = userFetcher
         .then(User::getName);
-    FuncFetcher<Long, String> idNumberLastFourDigitsFetcher = userFetcher
+    Function<Long, String> idNumberLastFourDigitsFetcher = userFetcher
         .then(User::getIdNumber)
         .then(lastFourDigitsFunc);
-    FuncFetcher<Long, String> userMobileLastFourDigitsFetcher = userFetcher
+    Function<Long, String> userMobileLastFourDigitsFetcher = userFetcher
         .then(user -> Api.getContact(user.getContactId()))
         .then(Contact::getNumber)
         .then(lastFourDigitsFunc);
 
-    Map<String, FuncFetcher<Long, String>> fetchers = new HashMap<>();
+    Map<String, Function<Long, String>> fetchers = new HashMap<>();
     fetchers.put("Username", usernameFetcher);
     fetchers.put("IdNumberLastFourDigits", idNumberLastFourDigitsFetcher);
     fetchers.put("UserMobileLastFourDigits", userMobileLastFourDigitsFetcher);
 
     long appId = 1234L;
     String key = "Username";
-    System.out.println(fetchers.get(key).fetch(appId));
+    System.out.println(fetchers.get(key).apply(appId));
   }
 }
