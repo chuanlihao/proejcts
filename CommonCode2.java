@@ -1,5 +1,6 @@
 package test;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -42,9 +43,7 @@ public class CommonCode2 {
 
   @SafeVarargs
   static <T> T wrap(T initValue, Consumer<T> ... consumers) {
-    for (Consumer<T> consumer : consumers) {
-      consumer.accept(initValue);
-    }
+    Arrays.stream(consumers).forEach(x -> x.accept(initValue));
     return initValue;
   }
 
