@@ -10,7 +10,7 @@ interface AsyncCall {
 class Promise {
   private Object input;
   private List<AsyncCall> calls = new ArrayList<>();
-  private Consumer<Object> consumer = (v) -> {};
+  private Consumer<Object> consumer;
 
   private Promise() {}
 
